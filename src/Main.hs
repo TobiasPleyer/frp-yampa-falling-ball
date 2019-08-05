@@ -1,6 +1,7 @@
 module Main where
 
-import           Control.Monad (forM_)
+import           Control.Concurrent
+import           Control.Monad      (forM_)
 import           FRP.Yampa
 
 type Pos = Double
@@ -16,18 +17,11 @@ fallingBall y0 = (constant (-9.81) >>> integral) >>> ((integral >>^ (+y0)) &&& i
 main :: IO ()
 main = do
   putStrLn "Hello FRP!"
-  -- The embed function calculates the outputs (effects) of a signal function
-  -- for a list of concrete times in the conceptually continous time line
-  forM_ (embed (fallingBall 10.0)
-                ((),
-                [ (0.1, Nothing)
-                , (0.1, Nothing)
-                , (0.1, Nothing)
-                , (0.1, Nothing)
-                , (0.1, Nothing)
-                , (0.1, Nothing)
-                , (0.1, Nothing)
-                , (0.1, Nothing)
-                , (0.1, Nothing)
-                , (0.1, Nothing)
-                ])) print
+  -- The reactimate function provides an event loop that continuously feeds
+  -- new events and time increments in our reactive system and sends the output
+  -- to a consumer
+  reactimate
+    (return ())
+    (\_ -> threadDelay 100000 >> return (0.1, Nothing))
+    (\_ (pos,vel) -> putStrLn ("pos: " ++ (show pos) ++ ", vel: " ++ (show vel)) >> return False)
+    (fallingBall 10.0)
