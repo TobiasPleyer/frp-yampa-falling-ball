@@ -1,18 +1,68 @@
+{-# LANGUAGE Arrows #-}
+
 module Main where
 
 import           Control.Concurrent
-import           Control.Monad      (forM_)
+import           Data.IORef
 import           FRP.Yampa
+import qualified FRP.Yampa as Y
 
-type Pos = Double
-type Vel = Double
+------------------------------------------------------------------------------
+-- Auxiliary definitions (type aliases)
+------------------------------------------------------------------------------
 
--- Type signature of our signal function.
--- It takes an initial position (s0) and the intial velocity (v0) and then
--- animates the ball falling to the ground, accelerated by gravity.
-fallingBall :: Pos -> SF () (Pos,Vel)
-fallingBall y0 = (constant (-9.81) >>> integral) >>> ((integral >>^ (+y0)) &&& identity)
---fallingBall y0 = constant 1 >>> integral >>> (arr (\t -> y0 - 4.905 * t**2) &&& arr (*(-9.81)))
+type Position = Double
+type Velocity = Double
+
+
+gravity :: Double
+gravity = -9.81
+
+-- The Attenuation type just guarantees that the attenuation lies between
+-- 0% and 100%, because only this is physically plausible
+newtype Attenuation = Att { getAtt :: Double }
+
+-- Use this attenuation constructor to guarantee sane limits
+mkAttenuation :: Double -> Attenuation
+mkAttenuation a
+  | a < 0.0   = Att 0
+  | a > 1.0   = Att 1.0
+  | otherwise = Att a
+
+
+fallingBall :: Position
+            -- ^ Initial height
+            -> Velocity
+            -- ^ Initial velocity
+            -> SF () (Position,Velocity)
+fallingBall y0 v0 = proc () -> do
+  v <- (v0+) ^<< integral -< gravity
+  y <- (y0+) ^<< integral -< v
+  returnA -< (y,v)
+
+
+bouncingBall :: Position
+             -- ^ Initial height
+             -> Velocity
+             -- ^ Initial velocity
+             -> Attenuation
+             -- ^ Loss of kinetic energy in percent (0-100%)
+             -> SF () (Position, Velocity)
+bouncingBall y0 v0 att =
+  switch (fallingBall y0 v0 >>> (Y.identity &&& hitBottom))
+         (\(y,v) -> bouncingBall y ((getAtt att-1.0)*v) att)
+
+
+hitBottom :: SF (Position,Velocity) (Event (Position,Velocity))
+hitBottom = arr (\(y,v) -> if y<0 && not (epsEq _eps v 0)
+                           then Event (0.0,v)
+                           else NoEvent)
+
+
+epsEq eps x y = abs(x-y) < eps
+
+_eps = 1e-6
+
 
 main :: IO ()
 main = do
@@ -22,6 +72,12 @@ main = do
   -- to a consumer
   reactimate
     (return ())
-    (\_ -> threadDelay 100000 >> return (0.1, Nothing))
-    (\_ (pos,vel) -> putStrLn ("pos: " ++ (show pos) ++ ", vel: " ++ (show vel)) >> return False)
-    (fallingBall 10.0)
+    (\_ -> do
+      threadDelay 100000
+      return (0.1, Nothing))
+    (\_ (pos,vel) -> do
+      putStrLn ("pos: " ++ (show pos) ++ ", vel: " ++ (show vel))
+      if epsEq _eps pos 0 && epsEq _eps vel 0
+      then return True
+      else return False)
+    (bouncingBall 10.0 0.0 (mkAttenuation 0.7))
