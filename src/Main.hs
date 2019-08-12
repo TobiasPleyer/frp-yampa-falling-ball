@@ -77,11 +77,11 @@ main = do
   reactimate
     (return ())
     (\_ -> do
-      threadDelay 100000
-      return (0.1, Nothing))
+      threadDelay 1000
+      return (0.001, Nothing))
     (\_ (pos,vel) -> do
       putStrLn ("pos: " ++ (show pos) ++ ", vel: " ++ (show vel))
-      if epsEq _eps pos 0 && epsEq _eps vel 0
+      if epsEq 1e-4 pos 0 && epsEq 1e-2 vel 0
       then return True
       else return False)
     (bouncingBall 10.0 0.0 (mkAttenuation 0.3))
