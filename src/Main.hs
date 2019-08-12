@@ -5,7 +5,8 @@ module Main where
 import           Control.Concurrent
 import           Data.IORef
 import           FRP.Yampa
-import qualified FRP.Yampa as Y
+import qualified FRP.Yampa           as Y
+import qualified System.Console.ANSI as T
 
 ------------------------------------------------------------------------------
 -- Auxiliary definitions (type aliases)
@@ -68,9 +69,16 @@ epsEq eps x y = abs(x-y) < eps
 _eps = 1e-6
 
 
+determineColumn :: Int -> Position -> Position -> Int
+determineColumn colMax pos posMax = truncate (fromIntegral colMax * pos / posMax) 
+
+
 main :: IO ()
 main = do
   putStrLn "Hello FRP!"
+  let
+    y0 = 10.0
+    v0 = 0.0
   -- The reactimate function provides an event loop that continuously feeds
   -- new events and time increments in our reactive system and sends the output
   -- to a consumer
@@ -80,8 +88,16 @@ main = do
       threadDelay 1000
       return (0.001, Nothing))
     (\_ (pos,vel) -> do
-      putStrLn ("pos: " ++ (show pos) ++ ", vel: " ++ (show vel))
+      let col = determineColumn 30 pos y0
+      T.clearScreen
+      T.cursorForward 6
+      T.cursorUp (30-col)
+      putChar 'o'
+      T.cursorUp 30
+      --T.cursorDown 41
+      --putStrLn "---------------------------------------"
+      --putStrLn ("vel: " ++ (show vel))
       if epsEq 1e-4 pos 0 && epsEq 1e-2 vel 0
       then return True
       else return False)
-    (bouncingBall 10.0 0.0 (mkAttenuation 0.3))
+    (bouncingBall y0 v0 (mkAttenuation 0.3))
