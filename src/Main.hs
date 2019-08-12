@@ -50,13 +50,17 @@ bouncingBall :: Position
              -> SF () (Position, Velocity)
 bouncingBall y0 v0 att =
   switch (fallingBall y0 v0 >>> (Y.identity &&& hitBottom))
-         (\(y,v) -> bouncingBall y ((getAtt att-1.0)*v) att)
+         (\(y,v) -> bouncingBall y (attenuate att v) att)
 
 
 hitBottom :: SF (Position,Velocity) (Event (Position,Velocity))
 hitBottom = arr (\(y,v) -> if y<0 && not (epsEq _eps v 0)
                            then Event (0.0,v)
                            else NoEvent)
+
+
+attenuate :: Attenuation -> Velocity -> Velocity
+attenuate (Att att) v = (att-1.0)*v
 
 
 epsEq eps x y = abs(x-y) < eps
@@ -80,4 +84,4 @@ main = do
       if epsEq _eps pos 0 && epsEq _eps vel 0
       then return True
       else return False)
-    (bouncingBall 10.0 0.0 (mkAttenuation 0.7))
+    (bouncingBall 10.0 0.0 (mkAttenuation 0.3))
