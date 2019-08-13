@@ -73,31 +73,47 @@ determineColumn :: Int -> Position -> Position -> Int
 determineColumn colMax pos posMax = truncate (fromIntegral colMax * pos / posMax) 
 
 
+push :: a -> [a] -> [a]
+push x xs = init (x:xs)
+
+
+allEqual :: Eq a => [a] -> Bool
+allEqual [] = True
+allEqual (x:xs) = all (==x) xs
+
+
 main :: IO ()
 main = do
-  putStrLn "Hello FRP!"
+  (ttyH, _) <- maybe (10, 10) id <$> T.getTerminalSize
   let
+    -- Tweak these parameters to change the behavior
+    h = ttyH-5
     y0 = 10.0
     v0 = 0.0
-  -- The reactimate function provides an event loop that continuously feeds
-  -- new events and time increments in our reactive system and sends the output
-  -- to a consumer
+    thread_delay = 5000
+    time_increment = 0.005
+    att = mkAttenuation 0.15
+  history <- newIORef [1..30]
+  putStrLn "Hello FRP!"
   reactimate
     (return ())
     (\_ -> do
-      threadDelay 1000
-      return (0.001, Nothing))
+      threadDelay thread_delay
+      return (time_increment, Nothing))
     (\_ (pos,vel) -> do
-      let col = determineColumn 30 pos y0
+      let
+        col = determineColumn h pos y0
+        before = replicate (h-col) ""
+        line = ["     o"]
+        after = replicate col ""
+        ground = ["TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT"]
+        buffer = unlines (before ++ line ++ after ++ ground)
       T.clearScreen
-      T.cursorForward 6
-      T.cursorUp (30-col)
-      putChar 'o'
-      T.cursorUp 30
-      --T.cursorDown 41
-      --putStrLn "---------------------------------------"
-      --putStrLn ("vel: " ++ (show vel))
-      if epsEq 1e-4 pos 0 && epsEq 1e-2 vel 0
-      then return True
+      putStrLn buffer
+      xs <- atomicModifyIORef' history (push col &&& id)
+      if allEqual (0:xs)
+      then do
+        putStrLn "Finished"
+        return True
       else return False)
-    (bouncingBall y0 v0 (mkAttenuation 0.3))
+    (bouncingBall y0 v0 att)
