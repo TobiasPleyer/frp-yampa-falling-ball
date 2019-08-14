@@ -69,8 +69,8 @@ epsEq eps x y = abs(x-y) < eps
 _eps = 1e-6
 
 
-determineColumn :: Int -> Position -> Position -> Int
-determineColumn colMax pos posMax = truncate (fromIntegral colMax * pos / posMax) 
+determineRow :: Int -> Position -> Position -> Int
+determineRow rowMax pos posMax = truncate (fromIntegral rowMax * pos / posMax) 
 
 
 push :: a -> [a] -> [a]
@@ -92,7 +92,7 @@ main = do
     v0 = 0.0
     thread_delay = 20000
     time_increment = 0.005
-    att = mkAttenuation 0.15
+    att = mkAttenuation 0.25
   history <- newIORef [1..30]
   putStrLn "Hello FRP!"
   reactimate
@@ -102,15 +102,15 @@ main = do
       return (time_increment, Nothing))
     (\_ (pos,vel) -> do
       let
-        col = determineColumn h pos y0
-        before = replicate (h-col) ""
+        row = determineRow h pos y0
+        before = replicate (h-row) ""
         line = ["     o"]
-        after = replicate col ""
+        after = replicate row ""
         ground = ["TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT"]
         buffer = unlines (before ++ line ++ after ++ ground)
       T.clearScreen
       putStrLn buffer
-      xs <- atomicModifyIORef' history (push col &&& id)
+      xs <- atomicModifyIORef' history (push row &&& id)
       if allEqual (0:xs)
       then do
         putStrLn "Finished"
