@@ -90,7 +90,7 @@ main = do
     h = ttyH-5
     y0 = 10.0
     v0 = 0.0
-    thread_delay = 5000
+    thread_delay = 20000
     time_increment = 0.005
     att = mkAttenuation 0.15
   history <- newIORef [1..30]
